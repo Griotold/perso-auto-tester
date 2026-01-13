@@ -54,7 +54,7 @@ def test_login_sync(log_callback=None):
         try:
             # 로그인 페이지 접속
             log("📍 로그인 페이지 접속 중...")
-            page.goto('https://perso.ai/ko/login', timeout=30000)
+            page.goto('https://perso.ai/ko/login', timeout=60000)
             page.wait_for_load_state('networkidle')
             
             # 이메일 입력
