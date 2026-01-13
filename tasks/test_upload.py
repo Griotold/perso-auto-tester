@@ -8,8 +8,11 @@ import asyncio
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from utils.config import PERSO_EMAIL, PERSO_PASSWORD, HEADLESS, SCREENSHOT_DIR, VIDEO_FILE_PATH
-from utils.popup_handler import accept_cookies, close_hubspot_iframe_popup, close_all_popups
+from utils.config import PERSO_EMAIL, HEADLESS, SCREENSHOT_DIR, VIDEO_FILE_PATH
+from utils.login import do_login
+from utils.upload import upload_file
+from utils.popup_handler import accept_cookies, close_hubspot_iframe_popup, close_all_popups, remove_hubspot_overlay
+from utils.browser import create_browser_context
 
 def test_upload_sync(log_callback=None):
     """파일 업로드 테스트 (번역 설정 모달 나타나는지까지)"""
@@ -34,90 +37,47 @@ def test_upload_sync(log_callback=None):
     log(f"🖥️  Headless: {HEADLESS}")
     
     with sync_playwright() as p:
-        # 브라우저 설정
-        launch_options = {'headless': HEADLESS}
-        if HEADLESS:
-            launch_options['args'] = [
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ]
-        else:
-            launch_options['slow_mo'] = 500
-        
-        browser = p.chromium.launch(**launch_options)
-        context = browser.new_context()
-        page = context.new_page()
+        # 브라우저 컨텍스트 생성 (utils.browser 사용)
+        browser, context, page = create_browser_context(p, headless=HEADLESS)
         
         try:
             # === STEP 1: 로그인 ===
             log("\n" + "="*50)
             log("STEP 1: 로그인")
             log("="*50)
-            
-            log("📍 로그인 페이지 접속 중...")
-            page.goto('https://perso.ai/ko/login', timeout=30000)
-            page.wait_for_load_state('networkidle')
-            
-            log("📝 이메일 입력 중...")
-            email_input = page.locator('input[type="email"], input[placeholder*="이메일"]')
-            email_input.fill(PERSO_EMAIL)
-            time.sleep(0.5)
-            
-            log("👆 계속 버튼 클릭...")
-            continue_button = page.locator('button:has-text("계속")')
-            continue_button.click()
-            time.sleep(2)
-            
-            log("🔐 비밀번호 입력 중...")
-            password_input = page.locator('input[type="password"]')
-            password_input.fill(PERSO_PASSWORD)
-            time.sleep(0.5)
-            
-            log("🚪 Enter 키로 로그인 제출...")
-            password_input.press('Enter')
-            
-            log("⏳ 로그인 처리 중...")
-            page.wait_for_url('**/workspace/**', timeout=15000)
-            log("✅ 로그인 성공!")
-            
-            # 화면 로딩 대기
-            log("⏳ 페이지 로딩 대기 중...")
-            try:
-                page.wait_for_load_state('networkidle', timeout=10000)
-                log("  ✓ 네트워크 로딩 완료")
-            except:
-                log("  ⚠️ 네트워크 타임아웃")
-            
-            time.sleep(2)
+
+            do_login(page, log)
             
             # === STEP 2: 팝업/모달 닫기 ===
             log("\n" + "="*50)
             log("STEP 2: 팝업/모달 닫기")
             log("="*50)
-            
+
             # 쿠키 수락
             try:
                 accept_cookies(page)
             except Exception as e:
                 log(f"  ⚠️ 쿠키 수락 실패: {e}")
-            
+
             # HubSpot iframe 팝업
             try:
                 close_hubspot_iframe_popup(page)
             except Exception as e:
                 log(f"  ⚠️ HubSpot 팝업 실패: {e}")
-            
+
+            # HubSpot 오버레이 제거
+            remove_hubspot_overlay(page, log)
+
             # 모든 팝업 닫기
             try:
                 close_all_popups(page)
             except Exception as e:
                 log(f"  ⚠️ 팝업 닫기 실패: {e}")
-            
+
             # 페이지 맨 위로 스크롤
             page.evaluate("window.scrollTo(0, 0)")
             time.sleep(1)
-            
+
             log("✅ 팝업/모달 정리 완료")
             
             # === STEP 3: 파일 업로드 ===
@@ -125,44 +85,7 @@ def test_upload_sync(log_callback=None):
             log("STEP 3: 파일 업로드")
             log("="*50)
 
-            log("📁 파일 input 찾는 중...")
-            file_input = page.locator('input[type="file"]').first
-
-            if not file_input.count():
-                log("❌ 파일 input을 찾을 수 없습니다")
-                raise Exception("파일 input 없음")
-
-            log(f"📤 파일 업로드 중: {Path(VIDEO_FILE_PATH).name}")
-            file_input.set_input_files(VIDEO_FILE_PATH)
-            log("  ✓ 파일 선택 완료")
-
-            # 번역 설정 모달 대기
-            log("⏳ 번역 설정 모달 대기 중...")
-            modal_detected = False
-
-            # 1단계: 모달 컨테이너가 먼저 나타날 때까지 대기
-            try:
-                page.wait_for_selector('[role="dialog"]', state='visible', timeout=15000)
-                log("  ✅ 모달 컨테이너 나타남!")
-                modal_detected = True
-
-                # 추가로 1초 대기 (모달 내부 콘텐츠 로딩)
-                time.sleep(1)
-
-                # 2단계: 번역 언어 텍스트 확인
-                try:
-                    page.wait_for_selector('text=번역 언어', timeout=5000)
-                    log("  ✅ 번역 설정 모달 콘텐츠 로드 완료!")
-                except:
-                    log("  ⚠️ 번역 언어 텍스트는 못 찾았지만 모달은 열림")
-            except:
-                log("  ⚠️ 모달 컨테이너를 찾지 못함")
-
-            if not modal_detected:
-                log("⚠️ 15초 대기했지만 모달을 찾지 못함")
-
-            # 안정화 대기
-            time.sleep(2)
+            modal_detected = upload_file(page, log)
             
             # === STEP 4: 번역 설정 모달 확인 ===
             log("\n" + "="*50)

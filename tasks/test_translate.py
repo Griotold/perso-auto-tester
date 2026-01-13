@@ -8,8 +8,11 @@ import asyncio
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from utils.config import PERSO_EMAIL, PERSO_PASSWORD, HEADLESS, SCREENSHOT_DIR, VIDEO_FILE_PATH
-from utils.popup_handler import accept_cookies, close_hubspot_iframe_popup, close_all_popups
+from utils.config import PERSO_EMAIL, HEADLESS, SCREENSHOT_DIR, VIDEO_FILE_PATH
+from utils.login import do_login
+from utils.upload import upload_file
+from utils.popup_handler import accept_cookies, close_hubspot_iframe_popup, close_all_popups, remove_hubspot_overlay
+from utils.browser import create_browser_context
 
 def test_translate_sync(log_callback=None):
     """파일 업로드 후 번역 설정을 완료하는 테스트"""
@@ -34,24 +37,13 @@ def test_translate_sync(log_callback=None):
     log(f"🖥️  Headless: {HEADLESS}")
 
     with sync_playwright() as p:
-        # 브라우저 설정
-        launch_options = {'headless': HEADLESS}
-        if HEADLESS:
-            launch_options['args'] = [
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ]
-        else:
-            launch_options['slow_mo'] = 500
-
-        browser = p.chromium.launch(**launch_options)
-
-        context = browser.new_context(
-            viewport={'width': 1920, 'height': 1080}  # 큰 화면!
+        # 브라우저 컨텍스트 생성 (utils.browser 사용, viewport 1920x1080)
+        browser, context, page = create_browser_context(
+            p,
+            headless=HEADLESS,
+            viewport_width=1920,
+            viewport_height=1080
         )
-        
-        page = context.new_page()
 
         try:
             # === STEP 1: 로그인 ===
@@ -59,41 +51,7 @@ def test_translate_sync(log_callback=None):
             log("STEP 1: 로그인")
             log("="*50)
 
-            log("📍 로그인 페이지 접속 중...")
-            page.goto('https://perso.ai/ko/login', timeout=30000)
-            page.wait_for_load_state('networkidle')
-
-            log("📝 이메일 입력 중...")
-            email_input = page.locator('input[type="email"], input[placeholder*="이메일"]')
-            email_input.fill(PERSO_EMAIL)
-            time.sleep(0.5)
-
-            log("👆 계속 버튼 클릭...")
-            continue_button = page.locator('button:has-text("계속")')
-            continue_button.click()
-            time.sleep(2)
-
-            log("🔐 비밀번호 입력 중...")
-            password_input = page.locator('input[type="password"]')
-            password_input.fill(PERSO_PASSWORD)
-            time.sleep(0.5)
-
-            log("🚪 Enter 키로 로그인 제출...")
-            password_input.press('Enter')
-
-            log("⏳ 로그인 처리 중...")
-            page.wait_for_url('**/workspace/**', timeout=15000)
-            log("✅ 로그인 성공!")
-
-            # 화면 로딩 대기
-            log("⏳ 페이지 로딩 대기 중...")
-            try:
-                page.wait_for_load_state('networkidle', timeout=10000)
-                log("  ✓ 네트워크 로딩 완료")
-            except:
-                log("  ⚠️ 네트워크 타임아웃")
-
-            time.sleep(2)
+            do_login(page, log)
 
             # === STEP 2: 팝업/모달 닫기 ===
             log("\n" + "="*50)
@@ -113,15 +71,7 @@ def test_translate_sync(log_callback=None):
                 log(f"  ⚠️ HubSpot 팝업 실패: {e}")
 
             # HubSpot 오버레이 제거
-            log("🧹 HubSpot 오버레이 제거 중...")
-            page.evaluate('''
-                const overlay = document.querySelector('#hs-interactives-modal-overlay');
-                if (overlay) overlay.remove();
-                const container = document.querySelector('#hs-web-interactives-top-anchor');
-                if (container) container.remove();
-            ''')
-            time.sleep(1)
-            log("✅ HubSpot 오버레이 제거 완료!")
+            remove_hubspot_overlay(page, log)
 
             # 모든 팝업 닫기
             try:
@@ -140,63 +90,18 @@ def test_translate_sync(log_callback=None):
             log("STEP 3: 파일 업로드")
             log("="*50)
 
-            log("📁 파일 input 찾는 중...")
-            file_input = page.locator('input[type="file"]').first
-
-            if not file_input.count():
-                log("❌ 파일 input을 찾을 수 없습니다")
-                raise Exception("파일 input 없음")
-
-            log(f"📤 파일 업로드 중: {Path(VIDEO_FILE_PATH).name}")
-            file_input.set_input_files(VIDEO_FILE_PATH)
-            log("  ✓ 파일 선택 완료")
-
-            # 번역 설정 모달 대기
-            log("⏳ 번역 설정 모달 대기 중...")
-            modal_detected = False
-
-            # 모달 컨테이너가 먼저 나타날 때까지 대기
-            try:
-                page.wait_for_selector('[role="dialog"]', state='visible', timeout=15000)
-                log("  ✅ 모달 컨테이너 나타남!")
-                modal_detected = True
-
-                # 추가로 1초 대기 (모달 내부 콘텐츠 로딩)
-                time.sleep(1)
-
-                # 번역 언어 텍스트 확인
-                try:
-                    page.wait_for_selector('text=번역 언어', timeout=5000)
-                    log("  ✅ 번역 설정 모달 콘텐츠 로드 완료!")
-                except:
-                    log("  ⚠️ 번역 언어 텍스트는 못 찾았지만 모달은 열림")
-            except:
-                log("  ⚠️ 모달 컨테이너를 찾지 못함")
+            modal_detected = upload_file(page, log)
 
             if not modal_detected:
-                log("⚠️ 15초 대기했지만 모달을 찾지 못함")
                 raise Exception("번역 설정 모달을 찾을 수 없음")
-
-            # 안정화 대기
-            time.sleep(2)
 
             # === STEP 4: 번역 설정 모달 확인 ===
             log("\n" + "="*50)
             log("STEP 4: 번역 설정 모달 확인")
             log("="*50)
 
-            log("🧹 HubSpot 오버레이 제거 중...")
-            page.evaluate('''
-                const overlay = document.querySelector('#hs-interactives-modal-overlay');
-                if (overlay) overlay.remove();
-                const container = document.querySelector('#hs-web-interactives-top-anchor');
-                if (container) container.remove();
-            ''')
-            time.sleep(1)
-            log("✅ HubSpot 오버레이 제거 완료!")
-
-            # STEP 5 시작
-            log("\n" + "="*50)
+            # HubSpot 오버레이 제거
+            remove_hubspot_overlay(page, log)
 
             # URL 및 페이지 상태 확인
             log(f"📍 현재 URL: {page.url}")
@@ -511,6 +416,8 @@ def test_translate_sync(log_callback=None):
 
                     # 최근 비디오에서 "sample" 영상 확인
                     log("\n🔍 업로드된 영상 확인 중...")
+                    processing_started = False
+
                     try:
                         # "sample" 텍스트 찾기
                         sample_video = page.get_by_text("sample").first
@@ -518,46 +425,97 @@ def test_translate_sync(log_callback=None):
                         if sample_video.is_visible(timeout=5000):
                             log("  ✓ 'sample' 영상 발견!")
 
-                            # "처리 중" 또는 "영상 처리중" 텍스트 찾기
-                            processing_text = page.get_by_text("처리", exact=False).first
+                            # "처리 중", "processing", 또는 "%" 같은 처리 상태 확인
+                            processing_indicators = [
+                                page.get_by_text("영상 처리 중", exact=False),
+                                page.get_by_text("processing", exact=False),
+                                page.get_by_text("%", exact=False)
+                            ]
 
-                            if processing_text.is_visible(timeout=3000):
-                                log("  ✓ 영상 처리 중 상태 확인!")
-                                log("✅ 영상이 정상적으로 업로드되고 처리 중입니다!")
-                            else:
+                            for indicator in processing_indicators:
+                                try:
+                                    if indicator.first.is_visible(timeout=2000):
+                                        log("  ✓ 영상 처리 중 상태 확인!")
+                                        log("✅ 영상이 정상적으로 업로드되고 처리 중입니다!")
+                                        processing_started = True
+                                        break
+                                except:
+                                    continue
+
+                            if not processing_started:
                                 log("  ℹ️ 처리 중 텍스트를 찾을 수 없지만 영상은 존재함")
                         else:
                             log("  ⚠️ 'sample' 영상을 찾을 수 없음")
                     except Exception as e:
                         log(f"  ⚠️ 영상 확인 실패: {e}")
 
-                    # 영상 처리 완료 대기
-                    log("\n⏳ 영상 처리 완료 대기 중 (최대 5분)...")
-                    processing_complete = False
-                    max_wait_seconds = 300  # 5분
-                    wait_interval = 10  # 10초마다 체크
-                    elapsed = 0
+                    # 영상 처리 완료 대기 (51초 영상 × 3 = 160초)
+                    if processing_started:
+                        log("\n⏳ 영상 처리 완료 대기 중 (최대 160초)...")
+                        processing_complete = False
+                        max_wait_seconds = 160  # 51초 × 3
+                        wait_interval = 10  # 10초마다 체크
+                        elapsed = 0
 
-                    while elapsed < max_wait_seconds and not processing_complete:
-                        time.sleep(wait_interval)
-                        elapsed += wait_interval
+                        while elapsed < max_wait_seconds and not processing_complete:
+                            time.sleep(wait_interval)
+                            elapsed += wait_interval
 
-                        # "몇 초 전", "몇 분 전" 텍스트 찾기
-                        try:
-                            if page.get_by_text("초 전").is_visible(timeout=1000) or \
-                               page.get_by_text("분 전").is_visible(timeout=1000):
-                                log(f"  ✅ 영상 처리 완료! (대기 시간: {elapsed}초)")
-                                processing_complete = True
-                                break
-                            else:
-                                log(f"  ⏳ 처리 중... ({elapsed}/{max_wait_seconds}초)")
-                        except:
-                            log(f"  ⏳ 처리 중... ({elapsed}/{max_wait_seconds}초)")
+                            # sample 영상 영역에서 처리 상태 확인
+                            try:
+                                # 1. sample 영상 찾기
+                                sample_video = page.get_by_text("sample").first
 
-                    if not processing_complete:
-                        log(f"  ⚠️ 타임아웃! 5분 초과 (처리 미완료 가능성)")
+                                if not sample_video.is_visible(timeout=1000):
+                                    log(f"  ⚠️ sample 영상을 찾을 수 없음 ({elapsed}/{max_wait_seconds}초)")
+                                    continue
+
+                                # 2. sample 영상 근처에서 처리 중 인디케이터 확인
+                                still_processing = False
+                                processing_indicators = [
+                                    page.get_by_text("영상 처리 중", exact=False),
+                                    page.get_by_text("processing", exact=False),
+                                    page.get_by_text("%", exact=False)
+                                ]
+
+                                for indicator in processing_indicators:
+                                    try:
+                                        if indicator.first.is_visible(timeout=500):
+                                            still_processing = True
+                                            break
+                                    except:
+                                        continue
+
+                                # 3. 처리 중이면 계속 대기
+                                if still_processing:
+                                    log(f"  ⏳ 처리 중... ({elapsed}/{max_wait_seconds}초)")
+                                    continue
+
+                                # 4. 처리 중이 아니면 타임스탬프 확인
+                                timestamp_found = False
+                                try:
+                                    if page.get_by_text("초 전").first.is_visible(timeout=500) or \
+                                       page.get_by_text("분 전").first.is_visible(timeout=500):
+                                        timestamp_found = True
+                                except:
+                                    pass
+
+                                if timestamp_found:
+                                    log(f"  ✅ 영상 처리 완료! (대기 시간: {elapsed}초)")
+                                    processing_complete = True
+                                    break
+                                else:
+                                    log(f"  ⏳ 처리 완료 확인 중... ({elapsed}/{max_wait_seconds}초)")
+
+                            except Exception as e:
+                                log(f"  ⚠️ 처리 상태 확인 실패: {e} ({elapsed}/{max_wait_seconds}초)")
+
+                        if not processing_complete:
+                            log(f"  ⚠️ 타임아웃! 160초 초과 (처리 미완료 가능성)")
+                        else:
+                            log(f"  🎉 영상 처리 성공!")
                     else:
-                        log(f"  🎉 영상 처리 성공!")
+                        log("  ℹ️ 처리 중 상태를 확인할 수 없어 대기를 건너뜁니다.")
 
                 else:
                     log(f"  ⚠️ workspace 페이지가 아님: {current_url}")

@@ -8,7 +8,9 @@ import asyncio
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from utils.config import PERSO_EMAIL, PERSO_PASSWORD, HEADLESS, SCREENSHOT_DIR
+from utils.config import PERSO_EMAIL, HEADLESS, SCREENSHOT_DIR
+from utils.login import do_login
+from utils.browser import create_browser_context
 
 def test_login_sync(log_callback=None):
     """로그인 테스트 (동기 버전)"""
@@ -34,80 +36,12 @@ def test_login_sync(log_callback=None):
     log(f"🖥️  Headless: {HEADLESS}")
     
     with sync_playwright() as p:
-        # 브라우저 설정
-        launch_options = {
-            'headless': HEADLESS,
-        }
-        if HEADLESS:
-            launch_options['args'] = [
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ]
-        else:
-            launch_options['slow_mo'] = 500
-        
-        browser = p.chromium.launch(**launch_options)
-        context = browser.new_context()
-        page = context.new_page()
+        # 브라우저 컨텍스트 생성 (utils.browser 사용)
+        browser, context, page = create_browser_context(p, headless=HEADLESS)
         
         try:
-            # 로그인 페이지 접속
-            log("📍 로그인 페이지 접속 중...")
-            page.goto('https://perso.ai/ko/login', timeout=60000)
-            page.wait_for_load_state('networkidle')
-            
-            # 이메일 입력
-            log("📝 이메일 입력 중...")
-            email_input = page.locator('input[type="email"], input[placeholder*="이메일"]')
-            email_input.fill(PERSO_EMAIL)
-            time.sleep(0.5)
-            
-            # 계속 버튼 클릭
-            log("👆 계속 버튼 클릭...")
-            continue_button = page.locator('button:has-text("계속")')
-            continue_button.click()
-            time.sleep(2)
-            
-            # 비밀번호 입력
-            log("🔐 비밀번호 입력 중...")
-            password_input = page.locator('input[type="password"]')
-            password_input.fill(PERSO_PASSWORD)
-            time.sleep(0.5)
-            
-            # Enter 키로 로그인
-            log("🚪 Enter 키로 로그인 제출...")
-            password_input.press('Enter')
-            
-            # 로그인 성공 확인
-            log("⏳ 로그인 처리 중...")
-            page.wait_for_url('**/workspace/**', timeout=15000)
-            
-            log("✅ 로그인 성공!")
-            
-            # === 화면 로딩 대기 (개선!) ===
-            log("⏳ 페이지 로딩 대기 중...")
-            
-            # 1. 네트워크 idle 대기
-            try:
-                page.wait_for_load_state('networkidle', timeout=10000)
-                log("  ✓ 네트워크 로딩 완료")
-            except:
-                log("  ⚠️ 네트워크 타임아웃 (계속 진행)")
-            
-            # 2. 주요 UI 요소 로드 확인
-            try:
-                # PERSO AI workspace의 주요 요소
-                page.wait_for_selector('text=AI Dubbing', state='visible', timeout=5000)
-                log("  ✓ 주요 UI 요소 로드 완료")
-            except:
-                log("  ⚠️ 일부 요소 로딩 지연")
-            
-            # 3. 추가 안정화 (애니메이션 등)
-            log("  ✓ 화면 안정화 중...")
-            time.sleep(2)
-            
-            log("✅ 화면 로딩 완료!")
+            # 로그인 (utils.login.do_login 사용)
+            do_login(page, log)
             
             # 스크린샷 저장
             screenshot_path = SCREENSHOT_DIR / "login_success.png"

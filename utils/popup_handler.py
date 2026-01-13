@@ -109,5 +109,43 @@ def close_all_popups(page):
         print(f"✅ 총 {closed_count}개의 팝업을 닫았습니다")
     else:
         print("ℹ️  닫을 팝업이 없습니다")
-    
+
     return closed_count > 0
+
+def remove_hubspot_overlay(page, log=None):
+    """HubSpot 오버레이 제거
+
+    Args:
+        page: Playwright page 객체
+        log: 로그 출력 함수 (optional)
+
+    Returns:
+        bool: 제거 성공 여부
+    """
+    if log:
+        log("🧹 HubSpot 오버레이 제거 중...")
+    else:
+        print("🧹 HubSpot 오버레이 제거 중...")
+
+    try:
+        page.evaluate('''
+            const overlay = document.querySelector('#hs-interactives-modal-overlay');
+            if (overlay) overlay.remove();
+            const container = document.querySelector('#hs-web-interactives-top-anchor');
+            if (container) container.remove();
+        ''')
+        time.sleep(1)
+
+        if log:
+            log("✅ HubSpot 오버레이 제거 완료!")
+        else:
+            print("✅ HubSpot 오버레이 제거 완료!")
+
+        return True
+    except Exception as e:
+        if log:
+            log(f"⚠️ HubSpot 오버레이 제거 실패: {e}")
+        else:
+            print(f"⚠️ HubSpot 오버레이 제거 실패: {e}")
+
+        return False
