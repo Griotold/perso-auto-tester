@@ -417,6 +417,7 @@ def test_translate_sync(log_callback=None):
                     # 최근 비디오에서 "sample" 영상 확인
                     log("\n🔍 업로드된 영상 확인 중...")
                     processing_started = False
+                    sample_video_found = False
 
                     try:
                         # "sample" 텍스트 찾기
@@ -424,6 +425,7 @@ def test_translate_sync(log_callback=None):
 
                         if sample_video.is_visible(timeout=5000):
                             log("  ✓ 'sample' 영상 발견!")
+                            sample_video_found = True
 
                             # "처리 중", "processing", 또는 "%" 같은 처리 상태 확인
                             processing_indicators = [
@@ -449,13 +451,35 @@ def test_translate_sync(log_callback=None):
                     except Exception as e:
                         log(f"  ⚠️ 영상 확인 실패: {e}")
 
-                    # 영상 처리 완료 대기 (51초 영상 × 3 = 160초)
+                    # sample 영상을 찾지 못한 경우 실패 처리
+                    if not sample_video_found:
+                        log("\n" + "="*50)
+                        log("❌ 테스트 실패: sample 영상을 찾을 수 없음")
+                        log("="*50)
+
+                        # 에러 스크린샷
+                        try:
+                            error_screenshot = SCREENSHOT_DIR / "translate_error.png"
+                            page.screenshot(path=str(error_screenshot), full_page=False)
+                            log(f"📸 에러 스크린샷 저장")
+                        except:
+                            pass
+
+                        return {
+                            "success": False,
+                            "screenshot": "translate_error.png",
+                            "message": "sample 영상을 찾을 수 없음"
+                        }
+
+                    # 영상 처리 완료 대기 (51초 영상 × 4 = 210초 + 재시도)
                     if processing_started:
-                        log("\n⏳ 영상 처리 완료 대기 중 (최대 160초)...")
+                        log("\n⏳ 영상 처리 완료 대기 중 (최대 210초 + 재시도)...")
                         processing_complete = False
-                        max_wait_seconds = 160  # 51초 × 3
+                        max_wait_seconds = 210  # 51초 × 4
                         wait_interval = 10  # 10초마다 체크
                         elapsed = 0
+                        last_status_text = ""  # 마지막으로 확인한 상태 텍스트
+                        status_change_count = 0  # 상태 변화 감지 횟수
 
                         while elapsed < max_wait_seconds and not processing_complete:
                             time.sleep(wait_interval)
@@ -470,28 +494,41 @@ def test_translate_sync(log_callback=None):
                                     log(f"  ⚠️ sample 영상을 찾을 수 없음 ({elapsed}/{max_wait_seconds}초)")
                                     continue
 
-                                # 2. sample 영상 근처에서 처리 중 인디케이터 확인
-                                still_processing = False
-                                processing_indicators = [
+                                # 2. 처리 중 상태 텍스트 수집 (변화 감지용)
+                                current_status_text = ""
+                                status_indicators = [
                                     page.get_by_text("영상 처리 중", exact=False),
+                                    page.get_by_text("음성 추출 중", exact=False),
+                                    page.get_by_text("번역 중", exact=False),
                                     page.get_by_text("processing", exact=False),
                                     page.get_by_text("%", exact=False)
                                 ]
 
-                                for indicator in processing_indicators:
+                                still_processing = False
+                                for indicator in status_indicators:
                                     try:
                                         if indicator.first.is_visible(timeout=500):
+                                            current_status_text = indicator.first.inner_text(timeout=500)
                                             still_processing = True
                                             break
                                     except:
                                         continue
 
-                                # 3. 처리 중이면 계속 대기
+                                # 3. 상태 변화 감지 (진행 중인 경우)
+                                if still_processing and current_status_text:
+                                    if last_status_text and current_status_text != last_status_text:
+                                        status_change_count += 1
+                                        log(f"  🔄 상태 변화 감지! ({last_status_text} → {current_status_text})")
+                                        log(f"  ⏰ 대기 시간 30초 연장 (변화 감지 횟수: {status_change_count})")
+                                        max_wait_seconds += 30  # 대기 시간 연장
+                                    last_status_text = current_status_text
+
+                                # 4. 처리 중이면 계속 대기
                                 if still_processing:
-                                    log(f"  ⏳ 처리 중... ({elapsed}/{max_wait_seconds}초)")
+                                    log(f"  ⏳ 처리 중... ({elapsed}/{max_wait_seconds}초) - {current_status_text}")
                                     continue
 
-                                # 4. 처리 중이 아니면 타임스탬프 확인
+                                # 5. 처리 중이 아니면 타임스탬프 확인
                                 timestamp_found = False
                                 try:
                                     if page.get_by_text("초 전").first.is_visible(timeout=500) or \
@@ -510,12 +547,104 @@ def test_translate_sync(log_callback=None):
                             except Exception as e:
                                 log(f"  ⚠️ 처리 상태 확인 실패: {e} ({elapsed}/{max_wait_seconds}초)")
 
+                        # 타임아웃 발생 시 재시도 로직
                         if not processing_complete:
-                            log(f"  ⚠️ 타임아웃! 160초 초과 (처리 미완료 가능성)")
+                            log(f"  ⚠️ 타임아웃! {max_wait_seconds}초 초과")
+
+                            max_retries = 2
+                            retry_wait_seconds = 30
+
+                            for retry_attempt in range(1, max_retries + 1):
+                                log(f"  ⏰ {retry_wait_seconds}초 후 재확인합니다... ({retry_attempt}/{max_retries})")
+                                time.sleep(retry_wait_seconds)
+
+                                log(f"  🔍 재확인 중... ({retry_attempt}차)")
+
+                                try:
+                                    # sample 영상 찾기
+                                    sample_video = page.get_by_text("sample").first
+
+                                    if not sample_video.is_visible(timeout=2000):
+                                        log(f"    ⚠️ sample 영상을 찾을 수 없음")
+                                        continue
+
+                                    # 처리 중 인디케이터 확인
+                                    still_processing = False
+                                    for indicator in status_indicators:
+                                        try:
+                                            if indicator.first.is_visible(timeout=500):
+                                                still_processing = True
+                                                break
+                                        except:
+                                            continue
+
+                                    # 여전히 처리 중이면 다음 재시도
+                                    if still_processing:
+                                        log(f"    ⏳ 여전히 처리 중...")
+                                        continue
+
+                                    # 타임스탬프 확인
+                                    timestamp_found = False
+                                    try:
+                                        if page.get_by_text("초 전").first.is_visible(timeout=500) or \
+                                           page.get_by_text("분 전").first.is_visible(timeout=500):
+                                            timestamp_found = True
+                                    except:
+                                        pass
+
+                                    if timestamp_found:
+                                        log(f"    ✅ 영상 처리 완료! ({retry_attempt}차 재시도에서 확인)")
+                                        processing_complete = True
+                                        break
+                                    else:
+                                        log(f"    ⚠️ 완료 확인 실패")
+
+                                except Exception as e:
+                                    log(f"    ⚠️ 재확인 실패: {e}")
+
+                        # 최종 판단
+                        if not processing_complete:
+                            log(f"  ❌ 최종 실패: 모든 재시도 후에도 처리 미완료")
+
+                            log("\n" + "="*50)
+                            log("❌ 테스트 실패: 영상 처리 타임아웃")
+                            log("="*50)
+
+                            # 에러 스크린샷
+                            try:
+                                error_screenshot = SCREENSHOT_DIR / "translate_error.png"
+                                page.screenshot(path=str(error_screenshot), full_page=False)
+                                log(f"📸 에러 스크린샷 저장")
+                            except:
+                                pass
+
+                            return {
+                                "success": False,
+                                "screenshot": "translate_error.png",
+                                "message": "영상 처리 타임아웃 (재시도 포함)"
+                            }
                         else:
                             log(f"  🎉 영상 처리 성공!")
                     else:
                         log("  ℹ️ 처리 중 상태를 확인할 수 없어 대기를 건너뜁니다.")
+
+                        log("\n" + "="*50)
+                        log("❌ 테스트 실패: 영상 처리 중 상태를 확인할 수 없음")
+                        log("="*50)
+
+                        # 에러 스크린샷
+                        try:
+                            error_screenshot = SCREENSHOT_DIR / "translate_error.png"
+                            page.screenshot(path=str(error_screenshot), full_page=False)
+                            log(f"📸 에러 스크린샷 저장")
+                        except:
+                            pass
+
+                        return {
+                            "success": False,
+                            "screenshot": "translate_error.png",
+                            "message": "영상 처리 중 상태를 확인할 수 없음"
+                        }
 
                 else:
                     log(f"  ⚠️ workspace 페이지가 아님: {current_url}")

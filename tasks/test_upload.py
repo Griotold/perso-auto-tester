@@ -86,61 +86,36 @@ def test_upload_sync(log_callback=None):
             log("="*50)
 
             modal_detected = upload_file(page, log)
-            
+
+            # upload_file에서 모달을 찾지 못한 경우 실패 처리
+            if not modal_detected:
+                log("\n" + "="*50)
+                log("❌ 테스트 실패: 번역 설정 모달을 찾을 수 없음")
+                log("="*50)
+
+                # 에러 스크린샷
+                try:
+                    error_screenshot = SCREENSHOT_DIR / "upload_error.png"
+                    page.screenshot(path=str(error_screenshot), full_page=False)
+                    log(f"📸 에러 스크린샷 저장")
+                except:
+                    pass
+
+                return {
+                    "success": False,
+                    "screenshot": "upload_error.png",
+                    "message": "번역 설정 모달을 찾을 수 없음"
+                }
+
             # === STEP 4: 번역 설정 모달 확인 ===
             log("\n" + "="*50)
             log("STEP 4: 번역 설정 모달 확인")
             log("="*50)
 
-            # URL 및 페이지 상태 확인
-            log(f"📍 현재 URL: {page.url}")
-            try:
-                page_info = page.evaluate('''
-                    () => {
-                        return {
-                            url: window.location.href,
-                            readyState: document.readyState,
-                            title: document.title,
-                            bodyInnerText: document.body.innerText.substring(0, 200)
-                        };
-                    }
-                ''')
-                log(f"  📄 페이지 제목: {page_info.get('title', 'N/A')}")
-                log(f"  🔄 ReadyState: {page_info.get('readyState', 'N/A')}")
-                log(f"  📝 페이지 내용 (앞 200자): {page_info.get('bodyInnerText', 'N/A')[:100]}...")
-            except Exception as e:
-                log(f"  ⚠️ 페이지 정보 확인 실패: {e}")
-
-            # 방해 요소 제거
-            # log("🧹 방해 요소 제거 중...")
-            # page.evaluate('''
-            #     // iframe 모두 제거
-            #     document.querySelectorAll('iframe').forEach(iframe => {
-            #         if (iframe.parentElement) {
-            #             iframe.parentElement.remove();
-            #         } else {
-            #             iframe.remove();
-            #         }
-            #     });
-            #
-            #     // 오버레이 제거
-            #     document.querySelectorAll('[data-state="open"][aria-hidden="true"]').forEach(el => el.remove());
-            #
-            #     // HubSpot 제거
-            #     document.querySelectorAll('[id*="hs-"], [class*="hs-"]').forEach(elem => {
-            #         if (elem.tagName === 'DIV' || elem.tagName === 'IFRAME') {
-            #             elem.remove();
-            #         }
-            #     });
-            # ''')
-            # time.sleep(1)
-
-            # 번역 설정 모달 찾기
-            log("🔍 번역 설정 모달 찾는 중...")
+            # 번역 설정 모달 재확인
+            log("🔍 번역 설정 모달 재확인 중...")
             modal_found = False
 
-            # ... (나머지 코드 동일)
-            
             # 방법 1: "번역 언어" 텍스트
             try:
                 if page.locator('text=번역 언어').is_visible(timeout=3000):
@@ -148,7 +123,7 @@ def test_upload_sync(log_callback=None):
                     modal_found = True
             except:
                 pass
-            
+
             # 방법 2: "Auto Detect" 텍스트
             if not modal_found:
                 try:
@@ -157,7 +132,7 @@ def test_upload_sync(log_callback=None):
                         modal_found = True
                 except:
                     pass
-            
+
             # 방법 3: "언어 선택" 버튼
             if not modal_found:
                 try:
@@ -166,12 +141,31 @@ def test_upload_sync(log_callback=None):
                         modal_found = True
                 except:
                     pass
-            
+
             if not modal_found:
                 log("  ⚠️ 번역 설정 모달을 찾지 못했습니다")
-                log("  💡 현재 페이지 상태 확인 중...")
-                
+
+                # URL 및 페이지 상태 확인
+                log(f"📍 현재 URL: {page.url}")
+                try:
+                    page_info = page.evaluate('''
+                        () => {
+                            return {
+                                url: window.location.href,
+                                readyState: document.readyState,
+                                title: document.title,
+                                bodyInnerText: document.body.innerText.substring(0, 200)
+                            };
+                        }
+                    ''')
+                    log(f"  📄 페이지 제목: {page_info.get('title', 'N/A')}")
+                    log(f"  🔄 ReadyState: {page_info.get('readyState', 'N/A')}")
+                    log(f"  📝 페이지 내용 (앞 200자): {page_info.get('bodyInnerText', 'N/A')[:100]}...")
+                except Exception as e:
+                    log(f"  ⚠️ 페이지 정보 확인 실패: {e}")
+
                 # 보이는 버튼들 출력
+                log("  💡 현재 페이지 상태 확인 중...")
                 try:
                     buttons = page.locator('button:visible').all()
                     log(f"  📋 보이는 버튼 개수: {len(buttons)}")
