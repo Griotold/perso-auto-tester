@@ -50,7 +50,6 @@ def verify_login_success(page, log):
     log("✅ 로그인 성공 확인 완료!")
     return True
 
-
 def verify_upload_success(page, log):
     """업로드 성공 여부 검증
     
@@ -69,19 +68,26 @@ def verify_upload_success(page, log):
     log("🔍 업로드 성공 여부 확인 중...")
     
     # 번역 설정 모달 확인
-    log("  🔍 번역 설정 모달 검색 중...")
     try:
-        modal = page.get_by_text("번역 설정", exact=False).first
-        if not modal.is_visible(timeout=5000):
-            raise Exception("번역 설정 모달을 찾을 수 없음")
-        log("  ✅ 번역 설정 모달 발견!")
-    except Exception as e:
-        log(f"  ❌ 모달 검색 실패: {e}")
-        raise
+        # 방법 1: "번역 언어" 텍스트
+        modal = page.locator('text=번역 언어').first
+        if modal.is_visible(timeout=3000):
+            log("  ✅ 번역 설정 모달 발견!")
+            return True
+    except:
+        pass
     
-    log("✅ 업로드 성공 확인 완료!")
-    return True
-
+    # 방법 2: "Auto Detect"
+    try:
+        modal = page.locator('text=Auto Detect').first
+        if modal.is_visible(timeout=2000):
+            log("  ✅ 번역 설정 모달 발견!")
+            return True
+    except:
+        pass
+    
+    log("  ❌ 번역 설정 모달 없음")
+    raise Exception("번역 설정 모달을 찾을 수 없음")
 
 def verify_translate_success(page, log):
     """번역 성공 여부 검증

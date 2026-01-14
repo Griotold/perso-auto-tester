@@ -42,23 +42,12 @@ def test_login_sync(log_callback=None):
 
             close_all_modals_and_popups(page, log) 
 
-            # STEP 3: 로그인 성공 확인
+            # === STEP 3: 로그인 성공 확인 ===
             log("\n" + "="*50)
             log("STEP 3: 로그인 성공 확인")
             log("="*50)
             
-            try:
-                verify_login_success(page, log)
-            except Exception as e:
-                # 에러 스크린샷
-                error_screenshot = SCREENSHOT_DIR / "login_error.png"
-                page.screenshot(path=str(error_screenshot))
-                
-                return {
-                    "success": False,
-                    "screenshot": "login_error.png",
-                    "message": f"로그인 검증 실패: {e}"
-                }
+            verify_login_success(page, log)
 
             # === STEP 4: 스크린샷 저장 (드롭다운 열린 상태) ===
             log("\n" + "="*50)
