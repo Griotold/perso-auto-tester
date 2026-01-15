@@ -50,7 +50,6 @@ async def index():
                 flex-wrap: wrap;
             }
             button {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
                 padding: 15px 30px;
                 border: none;
@@ -62,9 +61,29 @@ async def index():
                 flex: 1;
                 min-width: 200px;
             }
+            /* 로그인 버튼 - 파란색 */
+            #loginBtn {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }
+            #loginBtn:hover {
+                box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+            }
+            /* 업로드 버튼 - 초록색 */
+            #uploadBtn {
+                background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            }
+            #uploadBtn:hover {
+                box-shadow: 0 10px 20px rgba(17, 153, 142, 0.4);
+            }
+            /* 번역 버튼 - 보라색 */
+            #translateBtn {
+                background: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%);
+            }
+            #translateBtn:hover {
+                box-shadow: 0 10px 20px rgba(142, 45, 226, 0.4);
+            }
             button:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
             }
             button:active {
                 transform: translateY(0);
@@ -137,9 +156,9 @@ async def index():
                 display: inline-block;
                 width: 16px;
                 height: 16px;
-                border: 3px solid rgba(255,255,255,.3);
+                border: 3px solid rgba(102, 126, 234, 0.3);
                 border-radius: 50%;
-                border-top-color: white;
+                border-top-color: #4A00E0;
                 animation: spin 1s ease-in-out infinite;
                 margin-right: 10px;
             }

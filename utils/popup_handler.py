@@ -1,8 +1,9 @@
 import time
 
-def accept_cookies(page):
+def accept_cookies(page, log=None):
     """쿠키 수락 처리"""
-    print("🍪 쿠키 배너 확인 중...")
+    _log = log if log else print
+    _log("🍪 쿠키 배너 확인 중...")
 
     try:
         cookie_button_selectors = [
@@ -19,23 +20,24 @@ def accept_cookies(page):
                 button = page.locator(selector).first
                 if button.is_visible(timeout=2000):
                     button.click(force=True)
-                    print(f"✅ 쿠키 수락 완료")
+                    _log("✅ 쿠키 수락 완료")
                     time.sleep(1)
                     return True
             except:
                 continue
 
-        print("ℹ️  쿠키 배너 없음")
+        _log("ℹ️  쿠키 배너 없음")
         return False
 
     except Exception as e:
-        print(f"⚠️  쿠키 처리 중 에러: {e}")
+        _log(f"⚠️  쿠키 처리 중 에러: {e}")
         return False
 
-def close_hubspot_iframe_popup(page):
+def close_hubspot_iframe_popup(page, log=None):
     """HubSpot iframe 팝업 닫기"""
-    print("🔍 HubSpot iframe 팝업 확인 중...")
-    
+    _log = log if log else print
+    _log("🔍 HubSpot iframe 팝업 확인 중...")
+
     try:
         # iframe 자체를 강제로 제거
         page.evaluate('''
@@ -48,23 +50,24 @@ def close_hubspot_iframe_popup(page):
                 }
             });
         ''')
-        print("✅ HubSpot iframe 제거")
+        _log("✅ HubSpot iframe 제거")
         time.sleep(1)
         return True
     except Exception as e:
-        print(f"ℹ️  HubSpot iframe 없음: {e}")
+        _log(f"ℹ️  HubSpot iframe 없음: {e}")
         return False
 
-def close_all_popups(page):
+def close_all_popups(page, log=None):
     """모든 팝업/모달/오버레이 닫기"""
-    print("🔍 모든 팝업/오버레이 확인 중...")
-    
+    _log = log if log else print
+    _log("🔍 모든 팝업/오버레이 확인 중...")
+
     closed_count = 0
     max_attempts = 5
-    
+
     for attempt in range(max_attempts):
         found_close_button = False
-        
+
         # X 버튼 찾기
         close_selectors = [
             'button:has-text("×")',
@@ -72,12 +75,12 @@ def close_all_popups(page):
             'button[aria-label="Close"]',
             'button[aria-label="close"]',
         ]
-        
+
         for selector in close_selectors:
             try:
                 buttons = page.locator(selector)
                 count = buttons.count()
-                
+
                 if count > 0:
                     for i in range(count):
                         button = buttons.nth(i)
@@ -88,27 +91,27 @@ def close_all_popups(page):
                                     button.click(force=True, timeout=3000)
                                     closed_count += 1
                                     found_close_button = True
-                                    print(f"✅ 팝업 {closed_count}개 닫음")
+                                    _log(f"✅ 팝업 {closed_count}개 닫음")
                                     time.sleep(1)
                                     break
                         except:
                             continue
-                
+
                 if found_close_button:
                     break
-                    
+
             except:
                 continue
-        
+
         if not found_close_button:
             break
-        
+
         time.sleep(0.5)
-    
+
     if closed_count > 0:
-        print(f"✅ 총 {closed_count}개의 팝업을 닫았습니다")
+        _log(f"✅ 총 {closed_count}개의 팝업을 닫았습니다")
     else:
-        print("ℹ️  닫을 팝업이 없습니다")
+        _log("ℹ️  닫을 팝업이 없습니다")
 
     return closed_count > 0
 
@@ -122,10 +125,8 @@ def remove_hubspot_overlay(page, log=None):
     Returns:
         bool: 제거 성공 여부
     """
-    if log:
-        log("🧹 HubSpot 오버레이 제거 중...")
-    else:
-        print("🧹 HubSpot 오버레이 제거 중...")
+    _log = log if log else print
+    _log("🧹 HubSpot 오버레이 제거 중...")
 
     try:
         page.evaluate('''
@@ -136,64 +137,125 @@ def remove_hubspot_overlay(page, log=None):
         ''')
         time.sleep(1)
 
-        if log:
-            log("✅ HubSpot 오버레이 제거 완료!")
-        else:
-            print("✅ HubSpot 오버레이 제거 완료!")
-
+        _log("✅ HubSpot 오버레이 제거 완료!")
         return True
     except Exception as e:
-        if log:
-            log(f"⚠️ HubSpot 오버레이 제거 실패: {e}")
-        else:
-            print(f"⚠️ HubSpot 오버레이 제거 실패: {e}")
-
+        _log(f"⚠️ HubSpot 오버레이 제거 실패: {e}")
         return False
 
+def close_tutorial_popup(page, log=None):
+    """튜토리얼 팝업 닫기 (Driver.js 등)"""
+    _log = log if log else print
+    _log("📚 튜토리얼 팝업 확인 중...")
+
+    try:
+        # Driver.js 오버레이 강제 제거
+        page.evaluate('''
+            // Driver.js 오버레이 제거
+            const driverOverlay = document.querySelector('.driver-overlay');
+            if (driverOverlay) driverOverlay.remove();
+
+            // Driver.js 팝오버 제거
+            const driverPopover = document.querySelector('.driver-popover');
+            if (driverPopover) driverPopover.remove();
+
+            // Driver.js active body 클래스 제거
+            document.body.classList.remove('driver-active');
+            document.body.style.overflow = '';
+        ''')
+        _log("✅ Driver.js 튜토리얼 오버레이 제거")
+        time.sleep(1)
+
+        # Next 버튼 클릭
+        next_clicked = False
+        next_selectors = [
+            'button:has-text("Next")',
+            'button.driver-next-btn',
+            'button:has-text("다음")',
+        ]
+
+        for selector in next_selectors:
+            try:
+                button = page.locator(selector).first
+                if button.is_visible(timeout=1000):
+                    button.click(force=True)
+                    _log("✅ Next 버튼 클릭")
+                    time.sleep(1.5)  # Done 버튼 나타날 시간 확보
+                    next_clicked = True
+                    break
+            except:
+                continue
+
+        # Done 버튼 클릭 (Next 눌렀든 안 눌렀든 시도)
+        done_selectors = [
+            'button:has-text("Done")',
+            'button.driver-close-btn',
+            'button:has-text("완료")',
+            'button[aria-label="Close"]',
+        ]
+
+        for selector in done_selectors:
+            try:
+                button = page.locator(selector).first
+                if button.is_visible(timeout=2000):
+                    button.click(force=True)
+                    _log("✅ Done 버튼 클릭 - 튜토리얼 완전 종료")
+                    time.sleep(1)
+                    break
+            except:
+                continue
+
+        return True
+
+    except Exception as e:
+        _log(f"⚠️  튜토리얼 처리 중 에러: {e}")
+        return False
+    
 def close_all_modals_and_popups(page, log=None):
     """모든 팝업/모달/오버레이 한 번에 정리
-    
+
     Args:
         page: Playwright page 객체
         log: 로그 출력 함수 (optional)
-    
+
     Returns:
         None
     """
-    def _log(msg):
-        if log:
-            log(msg)
-        else:
-            print(msg)
-    
+    _log = log if log else print
     _log("🧹 팝업/모달 정리 시작...")
-    
+
     # 1. 쿠키 수락
     try:
-        accept_cookies(page)
+        accept_cookies(page, _log)
     except Exception as e:
         _log(f"  ⚠️ 쿠키 수락 실패: {e}")
-    
+
     # 2. HubSpot iframe 제거
     try:
-        close_hubspot_iframe_popup(page)
+        close_hubspot_iframe_popup(page, _log)
     except Exception as e:
         _log(f"  ⚠️ HubSpot iframe 실패: {e}")
-    
+
     # 3. HubSpot 오버레이 제거
     try:
         remove_hubspot_overlay(page, _log)
     except Exception as e:
         _log(f"  ⚠️ HubSpot 오버레이 실패: {e}")
-    
+
     # 4. 모든 팝업 닫기
     try:
-        close_all_popups(page)
+        close_all_popups(page, _log)
     except Exception as e:
         _log(f"  ⚠️ 팝업 닫기 실패: {e}")
-    
-    # 5. 맨 위로 스크롤
+
+    # 5. 튜토리얼 팝업 닫기
+    try:
+        close_tutorial_popup(page, _log)
+    except Exception as e:
+        _log(f"  ⚠️ 튜토리얼 닫기 실패: {e}")
+
+    # 6. 맨 위로 스크롤
     page.evaluate("window.scrollTo(0, 0)")
     time.sleep(1)
-    
+
     _log("✅ 팝업/모달 정리 완료!")
