@@ -306,3 +306,40 @@ def prepare_and_check_translation_modal(page, log=None):
 
     log("  ⚠️ 번역 설정 모달을 찾지 못했습니다")
     raise Exception("번역 설정 모달 확인 실패")
+
+def handle_permission_modal(page, log=None):
+    """권한 안내 모달 처리
+    
+    Args:
+        page: Playwright page 객체
+        log: 로그 함수
+    """
+    log = log or _default_log
+    
+    log("⏳ '서비스 이용 및 편집 권한 안내' 모달 확인 중...")
+    try:
+        agree_button = page.locator('button:has-text("동의 후 진행")').first
+        
+        if agree_button.is_visible(timeout=5000):
+            log("  ✓ '동의 후 진행' 버튼 발견!")
+            agree_button.click(force=True)
+            time.sleep(3)
+            log("✅ 권한 동의 완료!")
+        else:
+            log("ℹ️  권한 안내 모달 없음")
+    except Exception as e:
+        log(f"ℹ️  권한 안내 처리: {e}")
+
+def close_translation_settings_modal(page, log=None):
+    """번역 설정 모달 닫기
+    
+    Args:
+        page: Playwright page 객체
+        log: 로그 함수
+    """
+    log = log or _default_log
+    
+    log("🔍 번역 설정 모달 닫기...")
+    page.keyboard.press("Escape")
+    time.sleep(2)
+    log("✅ 번역 설정 모달 닫힘")

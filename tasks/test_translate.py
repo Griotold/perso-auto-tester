@@ -10,9 +10,11 @@ sys.path.insert(0, str(project_root))
 from utils.config import PERSO_EMAIL, HEADLESS, VIDEO_FILE_PATH
 from utils.login import do_login
 from utils.upload import upload_file
-from utils.popup_handler import close_all_modals_and_popups, prepare_and_check_translation_modal
+from utils.popup_handler import close_all_modals_and_popups, prepare_and_check_translation_modal, handle_permission_modal, close_translation_settings_modal, close_tutorial_popup
 from utils.browser import create_browser_context, save_screenshot
 from utils.logger import create_logger
+from utils.translation_helper import select_language_from_dropdown, click_translate_button
+from utils.video_processing import verify_and_wait_for_video_processing
 
 def test_translate_sync(log_callback=None):
     """파일 업로드 후 번역 설정을 완료하는 테스트"""
@@ -69,308 +71,43 @@ def test_translate_sync(log_callback=None):
             log("STEP 5: 원본 언어 선택 (Korean)")
             log("="*50)
 
-            log("🔍 원본 언어 드롭다운 찾는 중...")
-            # 첫 번째 combobox (원본 언어)
-            original_lang_dropdown = page.locator('button[role="combobox"]').first
+            select_language_from_dropdown(page, "Korean", dropdown_index=0, log=log)
 
-            log("👆 원본 언어 드롭다운 클릭...")
-            original_lang_dropdown.click(force=True)
-            time.sleep(2)
-
-            # 검색 input에 Korean 입력
-            log("⌨️  검색 input에 'Korean' 입력 중...")
-            search_input = page.locator('input[placeholder*="언어를 검색"]').first
-            search_input.fill("Korean")
-            time.sleep(1.5)
-
-            # Korean 요소 클릭
-            log("👆 Korean 선택 중...")
-            korean_elements = page.get_by_text("Korean", exact=True).all()
-            target_element = korean_elements[1] if len(korean_elements) >= 2 else korean_elements[0]
-
-            box = target_element.bounding_box()
-            x = box['x'] + box['width'] / 2
-            y = box['y'] + box['height'] / 2
-            page.mouse.click(x, y)
-            time.sleep(2)
-
-            log("✅ 원본 언어 Korean 선택 완료!")
+            #log("✅ 원본 언어 Korean 선택 완료!")
 
             # === STEP 6: 번역 언어 선택 (English) ===
             log("\n" + "="*50)
             log("STEP 6: 번역 언어 선택 (English)")
             log("="*50)
-
-            log("🔍 번역 언어 드롭다운 찾는 중...")
-            # 두 번째 combobox (번역 언어)
-            target_lang_dropdown = page.locator('button[role="combobox"]').nth(1)
-
-            log("👆 번역 언어 드롭다운 클릭...")
-            target_lang_dropdown.click(force=True)
-            time.sleep(2)
-
-            # 검색 input에 English 입력
-            log("⌨️  검색 input에 'English' 입력 중...")
-            search_input = page.locator('input[placeholder*="언어를 검색"]').first
-            search_input.fill("English")
-            time.sleep(1.5)
-
-            # English 요소 클릭 (마지막 요소 선택)
-            log("👆 English 선택 중...")
-            english_elements = page.get_by_text("English", exact=True).all()
-            target_element = english_elements[-1]  # 마지막 요소
-
-            box = target_element.bounding_box()
-            x = box['x'] + box['width'] / 2
-            y = box['y'] + box['height'] / 2
-            page.mouse.click(x, y)
-            time.sleep(2)
+            select_language_from_dropdown(page, "English", dropdown_index=1, log=log)
 
             # 드롭다운 닫기
             log("🔍 드롭다운 닫는 중...")
             page.mouse.click(900, 300)
             time.sleep(1)
+            #log("✅ 번역 언어 English 선택 완료!")
 
-            log("✅ 번역 언어 English 선택 완료!")
-
-            # === STEP 7: 번역하기 버튼 클릭 ===
+            # === STEP 7: 번역 시작 - 번역하기 버튼 클릭 ===
             log("\n" + "="*50)
-            log("STEP 7: 번역하기 버튼 클릭")
+            log("STEP 7: 번역 시작 - 번역하기 버튼 클릭")
             log("="*50)
+            click_translate_button(page, log)
+            handle_permission_modal(page, log)
+            close_translation_settings_modal(page, log)
+            close_tutorial_popup(page, log)
 
-            log("🔍 '번역하기' 버튼 찾는 중...")
-            translate_button = page.locator('button:has-text("번역하기")').first
-
-            log("👆 '번역하기' 버튼 클릭...")
-            translate_button.click()
-            
-            log("✅ 번역하기 버튼 클릭 완료!")
-            time.sleep(3)
-
-            # 👇 권한 안내 모달 처리!
-            log("⏳ '서비스 이용 및 편집 권한 안내' 모달 확인 중...")
-            try:
-                agree_button = page.locator('button:has-text("동의 후 진행")').first
-
-                if agree_button.is_visible(timeout=5000):
-                    log("  ✓ '동의 후 진행' 버튼 발견!")
-                    log("  👆 '동의 후 진행' 버튼 클릭...")
-                    agree_button.click(force=True)
-                    time.sleep(3)
-                    log("  ✅ '동의 후 진행' 완료!")
-                else:
-                    log("  ℹ️ 권한 안내 모달 없음")
-            except Exception as e:
-                log(f"  ℹ️ 권한 안내 처리: {e}")
-
-            # 👇 번역 설정 모달 닫기!
-            log("🔍 번역 설정 모달 닫기...")
-            page.keyboard.press("Escape")
-            time.sleep(2)
-            log("  ✓ 번역 설정 모달 닫힘")
-
-            # 가이드 팝업 닫기 (2개)
-            log("🔍 가이드 팝업 확인 중...")
-            try:
-                # 1번째 팝업: "Next" 버튼
-                next_button = page.locator('button:has-text("Next")').first
-                if next_button.is_visible(timeout=3000):
-                    log("  ✓ 1번째 가이드 팝업 발견!")
-                    log("  👆 'Next' 버튼 클릭...")
-                    next_button.click()
-                    time.sleep(2)
-                    log("  ✓ 1번째 가이드 팝업 닫힘")
-
-                    # 2번째 팝업: "Done" 버튼
-                    log("  🔍 2번째 가이드 팝업 확인 중...")
-                    done_button = page.locator('button:has-text("Done")').first
-                    if done_button.is_visible(timeout=3000):
-                        log("  ✓ 2번째 가이드 팝업 발견!")
-                        log("  👆 'Done' 버튼 클릭...")
-                        done_button.click()
-                        time.sleep(1)
-                        log("  ✓ 2번째 가이드 팝업 닫힘")
-                    else:
-                        log("  ℹ️ 2번째 가이드 팝업 없음")
-                else:
-                    # X 버튼 시도
-                    close_button = page.locator('[aria-label="Close"]').first
-                    if close_button.is_visible(timeout=2000):
-                        log("  ✓ Close 버튼 발견!")
-                        log("  👆 'Close' 버튼 클릭...")
-                        close_button.click()
-                        time.sleep(1)
-                        log("  ✓ 가이드 팝업 닫힘")
-                    else:
-                        log("  ℹ️ 가이드 팝업 없음")
-            except Exception as e:
-                log(f"  ℹ️ 가이드 팝업 처리: {e}")
+            # === STEP 8: 번역 처리 확인 ===
+            log("\n" + "="*50)
+            log("STEP 8: 번역 처리 확인")
+            log("="*50)
 
             # 페이지 전환 대기
             log("⏳ 페이지 전환 대기 중...")
             time.sleep(5)
 
-            # 홈 화면으로 이동했는지 확인
-            log("🔍 홈 화면 이동 확인 중...")
-            try:
-                # workspace URL 확인
-                current_url = page.url
-                log(f"  📍 현재 URL: {current_url}")
-
-                if "/workspace" in current_url:
-                    log("  ✓ workspace 페이지에 있음")
-
-                    # 추가로 페이지 로딩 대기
-                    time.sleep(3)
-                    page.wait_for_load_state('networkidle', timeout=10000)
-                    log("  ✓ 페이지 로딩 완료")
-                    log("✅ 홈 화면으로 이동 완료!")
-
-                    # 최근 비디오에서 "sample" 영상 확인
-                    log("\n🔍 업로드된 영상 확인 중...")
-                    processing_started = False
-                    sample_video_found = False
-
-                    try:
-                        # "sample" 텍스트 찾기
-                        sample_video = page.get_by_text("sample").first
-
-                        if sample_video.is_visible(timeout=5000):
-                            log("  ✓ 'sample' 영상 발견!")
-                            sample_video_found = True
-
-                            # 처리 상태 문구 확인: 대기 중, 영상 처리 중, 음성 추출 중, 번역 중, 음성 생성 중
-                            processing_status_texts = ["대기 중", "영상 처리 중", "음성 추출 중", "번역 중", "음성 생성 중"]
-
-                            for status_text in processing_status_texts:
-                                try:
-                                    if page.get_by_text(status_text, exact=False).first.is_visible(timeout=2000):
-                                        log(f"  ✓ 현재 상태: {status_text}")
-                                        processing_started = True
-                                        break
-                                except:
-                                    continue
-
-                            if not processing_started:
-                                log("  ℹ️ 처리 중 텍스트를 찾을 수 없지만 영상은 존재함")
-                        else:
-                            log("  ⚠️ 'sample' 영상을 찾을 수 없음")
-                    except Exception as e:
-                        log(f"  ⚠️ 영상 확인 실패: {e}")
-
-                    # sample 영상을 찾지 못한 경우 실패 처리
-                    if not sample_video_found:
-                        log("\n" + "="*50)
-                        log("❌ 테스트 실패: sample 영상을 찾을 수 없음")
-                        log("="*50)
-
-                        save_screenshot(page, "translate_error.png", log)
-
-                        return {
-                            "success": False,
-                            "screenshot": "translate_error.png",
-                            "message": "sample 영상을 찾을 수 없음"
-                        }
-
-                    # 영상 처리 완료 대기 (타임아웃 없음)
-                    if processing_started:
-                        log("\n⏳ 영상 처리 완료 대기 중...")
-                        processing_complete = False
-                        processing_failed = False
-                        wait_interval = 10  # 10초마다 체크
-                        elapsed = 0
-                        last_status_text = ""  # 마지막으로 확인한 상태 텍스트
-                        processing_status_texts = ["대기 중", "영상 처리 중", "음성 추출 중", "번역 중", "음성 생성 중"]
-
-                        while not processing_complete and not processing_failed:
-                            time.sleep(wait_interval)
-                            elapsed += wait_interval
-
-                            try:
-                                # 1. Failed 체크 (실패 시 즉시 종료)
-                                try:
-                                    if page.get_by_text("Failed", exact=False).first.is_visible(timeout=500):
-                                        log(f"  ❌ 'Failed' 감지! 영상 처리 실패")
-                                        processing_failed = True
-                                        break
-                                except:
-                                    pass
-
-                                # 2. 처리 상태 문구 확인
-                                current_status_text = ""
-                                still_processing = False
-
-                                for status_text in processing_status_texts:
-                                    try:
-                                        if page.get_by_text(status_text, exact=False).first.is_visible(timeout=500):
-                                            current_status_text = status_text
-                                            still_processing = True
-                                            break
-                                    except:
-                                        continue
-
-                                # 3. 상태 변화 감지 시 로그 출력
-                                if still_processing and current_status_text:
-                                    if current_status_text != last_status_text:
-                                        log(f"  🔄 상태 변경: {current_status_text}")
-                                        last_status_text = current_status_text
-                                    else:
-                                        log(f"  ⏳ {elapsed}초 경과... ({current_status_text})")
-                                    continue
-
-                                # 4. 처리 중이 아니면 타임스탬프 확인 (완료 판단)
-                                timestamp_found = False
-                                try:
-                                    if page.get_by_text("초 전").first.is_visible(timeout=500) or \
-                                       page.get_by_text("분 전").first.is_visible(timeout=500):
-                                        timestamp_found = True
-                                except:
-                                    pass
-
-                                if timestamp_found:
-                                    log(f"  ✅ 영상 처리 완료! (총 대기 시간: {elapsed}초)")
-                                    processing_complete = True
-                                    break
-                                else:
-                                    log(f"  ⏳ {elapsed}초 경과... (상태 확인 중)")
-
-                            except Exception as e:
-                                log(f"  ⚠️ 처리 상태 확인 실패: {e} ({elapsed}초)")
-
-                        # 결과 판단
-                        if processing_failed:
-                            log("\n" + "="*50)
-                            log("❌ 테스트 실패: 영상 처리 Failed")
-                            log("="*50)
-
-                            save_screenshot(page, "translate_error.png", log)
-
-                            return {
-                                "success": False,
-                                "screenshot": "translate_error.png",
-                                "message": "영상 처리 실패 (Failed)"
-                            }
-                        else:
-                            log(f"  🎉 영상 처리 성공!")
-                    else:
-                        log("  ℹ️ 처리 중 상태를 확인할 수 없어 대기를 건너뜁니다.")
-
-                        log("\n" + "="*50)
-                        log("❌ 테스트 실패: 영상 처리 중 상태를 확인할 수 없음")
-                        log("="*50)
-
-                        save_screenshot(page, "translate_error.png", log)
-
-                        return {
-                            "success": False,
-                            "screenshot": "translate_error.png",
-                            "message": "영상 처리 중 상태를 확인할 수 없음"
-                        }
-
-                else:
-                    log(f"  ⚠️ workspace 페이지가 아님: {current_url}")
-            except Exception as e:
-                log(f"  ⚠️ 홈 화면 확인 실패: {e}")
+            # 번역 처리 검증
+            verify_and_wait_for_video_processing(page, "sample", log)
+                        
 
             # === STEP 8: 스크린샷 저장 ===
             log("\n" + "="*50)
