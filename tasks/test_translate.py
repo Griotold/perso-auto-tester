@@ -10,7 +10,7 @@ sys.path.insert(0, str(project_root))
 from utils.config import PERSO_EMAIL, HEADLESS, VIDEO_FILE_PATH
 from utils.login import do_login
 from utils.upload import upload_file
-from utils.popup_handler import close_all_modals_and_popups, remove_hubspot_overlay
+from utils.popup_handler import close_all_modals_and_popups, prepare_and_check_translation_modal
 from utils.browser import create_browser_context, save_screenshot
 from utils.logger import create_logger
 
@@ -60,27 +60,7 @@ def test_translate_sync(log_callback=None):
             log("STEP 4: 번역 설정 모달 확인")
             log("="*50)
 
-            # HubSpot 오버레이 제거
-            remove_hubspot_overlay(page, log)
-
-            # URL 및 페이지 상태 확인
-            log(f"📍 현재 URL: {page.url}")
-
-            # 번역 설정 모달 찾기
-            log("🔍 번역 설정 모달 찾는 중...")
-            modal_found = False
-
-            # "번역 언어" 텍스트 확인
-            try:
-                if page.locator('text=번역 언어').is_visible(timeout=3000):
-                    log("  ✅ 번역 설정 모달 발견!")
-                    modal_found = True
-            except:
-                pass
-
-            if not modal_found:
-                log("  ⚠️ 번역 설정 모달을 찾지 못했습니다")
-                raise Exception("번역 설정 모달 확인 실패")
+            prepare_and_check_translation_modal(page, log)
 
             log("✅ 번역 설정 모달 확인 완료!")
 
@@ -93,87 +73,28 @@ def test_translate_sync(log_callback=None):
             # 첫 번째 combobox (원본 언어)
             original_lang_dropdown = page.locator('button[role="combobox"]').first
 
-            # 현재 값 확인
-            current_value = original_lang_dropdown.inner_text()
-            log(f"  📝 현재 드롭다운 값: {current_value}")
-
             log("👆 원본 언어 드롭다운 클릭...")
             original_lang_dropdown.click(force=True)
             time.sleep(2)
 
-            korean_found = False
+            # 검색 input에 Korean 입력
+            log("⌨️  검색 input에 'Korean' 입력 중...")
+            search_input = page.locator('input[placeholder*="언어를 검색"]').first
+            search_input.fill("Korean")
+            time.sleep(1.5)
 
-            # 방법 3: position 기반 클릭 (좌표로 직접 클릭)
-            log("🔍 좌표 기반 클릭 시도...")
-            try:
-                # 검색 input 찾기
-                log("  🔍 검색 input 찾는 중...")
-                search_input = page.locator('input[placeholder*="언어를 검색"]').first
+            # Korean 요소 클릭
+            log("👆 Korean 선택 중...")
+            korean_elements = page.get_by_text("Korean", exact=True).all()
+            target_element = korean_elements[1] if len(korean_elements) >= 2 else korean_elements[0]
 
-                if search_input.is_visible(timeout=3000):
-                    log("  ✓ 검색 input 발견!")
+            box = target_element.bounding_box()
+            x = box['x'] + box['width'] / 2
+            y = box['y'] + box['height'] / 2
+            page.mouse.click(x, y)
+            time.sleep(2)
 
-                    # Korean 입력
-                    log("  ⌨️  'Korean' 입력 중...")
-                    search_input.fill("Korean")
-                    time.sleep(1.5)
-                    log("  ✓ 검색 완료")
-
-                    # Korean 요소의 위치 가져오기
-                    log("  📍 Korean 요소의 위치 확인 중...")
-                    korean_elements = page.get_by_text("Korean", exact=True).all()
-
-                    # 요소가 실제로 존재하는지 확인
-                    if len(korean_elements) > 0:
-                        log(f"  📋 발견된 Korean 요소 개수: {len(korean_elements)}")
-
-                        # 2개 이상이면 아래쪽(두 번째) 선택
-                        target_element = korean_elements[1] if len(korean_elements) >= 2 else korean_elements[0]
-                        element_index = 1 if len(korean_elements) >= 2 else 0
-
-                        box = target_element.bounding_box()
-
-                        if box:
-                            # 요소의 중앙 좌표 계산
-                            x = box['x'] + box['width'] / 2
-                            y = box['y'] + box['height'] / 2
-
-                            log(f"  📍 선택한 Korean 요소: {element_index + 1}번째")
-                            log(f"  📍 Korean 위치: x={x:.0f}, y={y:.0f}")
-
-                            # 좌표로 직접 클릭
-                            log("  👆 좌표로 클릭 중...")
-                            page.mouse.click(x, y)
-                            time.sleep(2)
-
-                            korean_found = True
-                            log("  ✅ 좌표 클릭 성공!")
-                        else:
-                            log("  ⚠️ Korean 요소의 bounding box를 가져올 수 없음")
-                    else:
-                        log("  ⚠️ Korean 요소를 찾을 수 없음")
-                else:
-                    log("  ⚠️ 검색 input이 보이지 않음")
-            except Exception as e:
-                log(f"  ⚠️ 좌표 클릭 실패: {e}")
-
-            # 선택 확인
-            log("🔍 선택 결과 확인 중...")
-            try:
-                # 드롭다운이 자동으로 닫힐 때까지 대기
-                time.sleep(1)
-
-                selected_value = page.locator('button[role="combobox"]').first.inner_text()
-                log(f"  📝 현재 선택된 값: {selected_value}")
-
-                if "Korean" in selected_value:
-                    log("✅ 원본 언어 Korean 선택 완료!")
-                else:
-                    log(f"⚠️ Korean이 선택되지 않음 (현재: {selected_value})")
-                    log("⚠️ 계속 진행합니다...")
-            except Exception as e:
-                log(f"⚠️ 선택 결과 확인 실패: {e}")
-                log("⚠️ 계속 진행합니다...")
+            log("✅ 원본 언어 Korean 선택 완료!")
 
             # === STEP 6: 번역 언어 선택 (English) ===
             log("\n" + "="*50)
@@ -184,102 +105,33 @@ def test_translate_sync(log_callback=None):
             # 두 번째 combobox (번역 언어)
             target_lang_dropdown = page.locator('button[role="combobox"]').nth(1)
 
-            # 현재 값 확인
-            try:
-                target_current_value = target_lang_dropdown.inner_text()
-                log(f"  📝 현재 드롭다운 값: {target_current_value}")
-            except:
-                log("  📝 현재 드롭다운 값을 가져올 수 없음")
-
             log("👆 번역 언어 드롭다운 클릭...")
             target_lang_dropdown.click(force=True)
             time.sleep(2)
 
-            english_found = False
+            # 검색 input에 English 입력
+            log("⌨️  검색 input에 'English' 입력 중...")
+            search_input = page.locator('input[placeholder*="언어를 검색"]').first
+            search_input.fill("English")
+            time.sleep(1.5)
 
-            # 좌표 기반 클릭 (STEP 5와 동일한 방식)
-            log("🔍 좌표 기반 클릭 시도...")
-            try:
-                # 검색 input 찾기
-                log("  🔍 검색 input 찾는 중...")
-                search_input = page.locator('input[placeholder*="언어를 검색"]').first
+            # English 요소 클릭 (마지막 요소 선택)
+            log("👆 English 선택 중...")
+            english_elements = page.get_by_text("English", exact=True).all()
+            target_element = english_elements[-1]  # 마지막 요소
 
-                if search_input.is_visible(timeout=3000):
-                    log("  ✓ 검색 input 발견!")
+            box = target_element.bounding_box()
+            x = box['x'] + box['width'] / 2
+            y = box['y'] + box['height'] / 2
+            page.mouse.click(x, y)
+            time.sleep(2)
 
-                    # English 입력
-                    log("  ⌨️  'English' 입력 중...")
-                    search_input.fill("English")
-                    time.sleep(1.5)
-                    log("  ✓ 검색 완료")
-
-                    # English 요소의 위치 가져오기
-                    log("  📍 English 요소의 위치 확인 중...")
-                    english_elements = page.get_by_text("English", exact=True).all()
-
-                    # 요소가 실제로 존재하는지 확인
-                    if len(english_elements) > 0:
-                        log(f"  📋 발견된 English 요소 개수: {len(english_elements)}")
-
-                        # 👇 마지막 요소(3번째) 선택!
-                        target_element = english_elements[-1]
-                        element_index = len(english_elements) - 1
-
-                        box = target_element.bounding_box()
-
-                        if box:
-                            # 요소의 중앙 좌표 계산
-                            x = box['x'] + box['width'] / 2
-                            y = box['y'] + box['height'] / 2
-
-                            log(f"  📍 선택한 English 요소: {element_index + 1}번째")
-                            log(f"  📍 English 위치: x={x:.0f}, y={y:.0f}")
-
-                            # 좌표로 직접 클릭
-                            log("  👆 좌표로 클릭 중...")
-                            page.mouse.click(x, y)
-                            time.sleep(2)
-
-                            english_found = True
-                            log("  ✅ 좌표 클릭 성공!")
-                        else:
-                            log("  ⚠️ English 요소의 bounding box를 가져올 수 없음")
-                    else:
-                        log("  ⚠️ English 요소를 찾을 수 없음")
-                else:
-                    log("  ⚠️ 검색 input이 보이지 않음")
-            except Exception as e:
-                log(f"  ⚠️ 좌표 클릭 실패: {e}")
-
-            # 선택 확인
-            log("🔍 선택 결과 확인 중...")
-            try:
-                # 선택 후 대기
-                time.sleep(1)
-
-                # 알약 모양 UI 확인 (선택된 언어가 별도로 표시됨)
-                english_pill = page.get_by_text("English", exact=True).first
-
-                if english_pill.is_visible(timeout=2000):
-                    log("  ✓ English 알약 UI 발견!")
-                    log("✅ 번역 언어 English 선택 완료!")
-                else:
-                    log("⚠️ English 알약 UI를 찾을 수 없음")
-                    log("⚠️ 계속 진행합니다...")
-            except Exception as e:
-                log(f"⚠️ 선택 결과 확인 실패: {e}")
-                log("⚠️ 계속 진행합니다...")
-
-            # 드롭다운 닫기 (모달 빈 공간 클릭)
+            # 드롭다운 닫기
             log("🔍 드롭다운 닫는 중...")
-            try:
-                # 모달 오른쪽 빈 공간 클릭 (좌표로 직접 클릭)
-                log("  👆 모달 빈 공간 클릭 (좌표: 900, 300)...")
-                page.mouse.click(900, 300)
-                time.sleep(1)
-                log("  ✓ 드롭다운 닫힘")
-            except Exception as e:
-                log(f"  ⚠️ 드롭다운 닫기 실패: {e}")
+            page.mouse.click(900, 300)
+            time.sleep(1)
+
+            log("✅ 번역 언어 English 선택 완료!")
 
             # === STEP 7: 번역하기 버튼 클릭 ===
             log("\n" + "="*50)
@@ -295,13 +147,7 @@ def test_translate_sync(log_callback=None):
             log("✅ 번역하기 버튼 클릭 완료!")
             time.sleep(3)
 
-            # 👇 먼저 번역 설정 모달 닫기!
-            log("🔍 번역 설정 모달 닫기...")
-            page.keyboard.press("Escape")
-            time.sleep(2)
-            log("  ✓ 번역 설정 모달 닫힘")
-
-            # 👇 그 다음 권한 안내 모달 처리!
+            # 👇 권한 안내 모달 처리!
             log("⏳ '서비스 이용 및 편집 권한 안내' 모달 확인 중...")
             try:
                 agree_button = page.locator('button:has-text("동의 후 진행")').first
@@ -316,6 +162,12 @@ def test_translate_sync(log_callback=None):
                     log("  ℹ️ 권한 안내 모달 없음")
             except Exception as e:
                 log(f"  ℹ️ 권한 안내 처리: {e}")
+
+            # 👇 번역 설정 모달 닫기!
+            log("🔍 번역 설정 모달 닫기...")
+            page.keyboard.press("Escape")
+            time.sleep(2)
+            log("  ✓ 번역 설정 모달 닫힘")
 
             # 가이드 팝업 닫기 (2개)
             log("🔍 가이드 팝업 확인 중...")
