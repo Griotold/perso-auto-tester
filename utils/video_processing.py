@@ -6,7 +6,7 @@ import time
 _default_log = create_logger()
 
 # utils/video_processing.py
-def verify_and_wait_for_video_processing(page, video_name, log=None):
+def wait_for_video_processing(page, video_name, log=None):
     """비디오 처리 전체 플로우
     
     Raises:

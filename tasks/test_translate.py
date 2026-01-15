@@ -14,7 +14,7 @@ from utils.popup_handler import close_all_modals_and_popups, prepare_and_check_t
 from utils.browser import create_browser_context, save_screenshot
 from utils.logger import create_logger
 from utils.translation_helper import select_language_from_dropdown, click_translate_button
-from utils.video_processing import verify_and_wait_for_video_processing
+from utils.verification import verify_translate_success
 
 def test_translate_sync(log_callback=None):
     """파일 업로드 후 번역 설정을 완료하는 테스트"""
@@ -106,7 +106,7 @@ def test_translate_sync(log_callback=None):
             time.sleep(5)
 
             # 번역 처리 검증
-            verify_and_wait_for_video_processing(page, "sample", log)
+            verify_translate_success(page, log)
                         
 
             # === STEP 8: 스크린샷 저장 ===

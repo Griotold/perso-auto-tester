@@ -291,6 +291,8 @@ def prepare_and_check_translation_modal(page, log=None):
     # 1. HubSpot 오버레이 제거
     remove_hubspot_overlay(page, log)
 
+    time.sleep(2)  # 모달 렌더링 대기
+
     # URL 및 페이지 상태 확인
     log(f"📍 현재 URL: {page.url}")
 
@@ -298,14 +300,13 @@ def prepare_and_check_translation_modal(page, log=None):
     log("🔍 번역 설정 모달 찾는 중...")
 
     try:
-        if page.locator('text=번역 언어').is_visible(timeout=3000):
-            log("  ✅ 번역 설정 모달 발견!")
-            return True
-    except:
-        pass
-
-    log("  ⚠️ 번역 설정 모달을 찾지 못했습니다")
-    raise Exception("번역 설정 모달 확인 실패")
+        # ✅ 이렇게 변경! (기존 if page.locator 제거)
+        page.wait_for_selector('text=번역 언어', state='visible', timeout=10000)
+        log("  ✅ 번역 설정 모달 발견!")
+        return True
+    except TimeoutError:
+        log("  ⚠️ 번역 설정 모달을 찾지 못했습니다 (10초 대기)")
+        raise Exception("번역 설정 모달 확인 실패")
 
 def handle_permission_modal(page, log=None):
     """권한 안내 모달 처리
