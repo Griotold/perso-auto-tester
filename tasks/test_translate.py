@@ -117,13 +117,13 @@ def test_translate_sync(log_callback=None):
             save_screenshot(page, "translate_success.png", log)
 
             log("\n" + "="*50)
-            log("✅ 번역 설정 테스트 완료!")
+            log("✅ 번역 테스트 완료!")
             log("="*50)
 
             return {
                 "success": True,
                 "screenshot": "translate_success.png",
-                "message": "번역 설정이 성공적으로 완료되었습니다!"
+                "message": "번역 테스트가 성공적으로 완료되었습니다!"
             }
 
         except Exception as e:
@@ -136,7 +136,7 @@ def test_translate_sync(log_callback=None):
             return {
                 "success": False,
                 "screenshot": "translate_error.png",
-                "message": f"번역 설정 실패: {str(e)}"
+                "message": f"번역 테스트 실패: {str(e)}"
             }
 
         finally:
