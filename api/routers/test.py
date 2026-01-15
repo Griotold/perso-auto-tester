@@ -1,3 +1,13 @@
+"""
+api/routers/test.py
+
+테스트 실행 WebSocket 라우터.
+클라이언트와 WebSocket 연결을 맺고, 테스트(로그인/업로드/번역)를 실행하면서
+실시간으로 로그를 스트리밍하고 결과를 반환합니다.
+
+엔드포인트: /test/ws/{test_type}
+- test_type: "login" | "upload" | "translate"
+"""
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
