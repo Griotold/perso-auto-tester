@@ -7,8 +7,8 @@ import time
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from utils.config import PERSO_EMAIL, HEADLESS, SCREENSHOT_DIR
-from utils.browser import create_browser_context
+from utils.config import PERSO_EMAIL, HEADLESS
+from utils.browser import create_browser_context, save_screenshot
 from utils.login import do_login
 from utils.popup_handler import close_all_modals_and_popups
 from utils.logger import create_logger
@@ -54,10 +54,7 @@ def test_login_sync(log_callback=None):
             log("STEP 4: 스크린샷 저장")
             log("="*50)
 
-            screenshot_path = SCREENSHOT_DIR / "login_success.png"
-            log(f"📸 스크린샷 촬영 중 (드롭다운 열린 상태)...")
-            page.screenshot(path=str(screenshot_path), full_page=False)
-            log(f"✅ 스크린샷 저장 완료: {screenshot_path.name}")
+            save_screenshot(page, "login_success.png", log)
 
             # 드롭다운 닫기
             log("🔽 드롭다운 닫는 중...")
@@ -76,15 +73,8 @@ def test_login_sync(log_callback=None):
             
         except Exception as e:
             log(f"❌ 에러 발생: {e}")
-            
-            # 에러 스크린샷
-            try:
-                error_screenshot = SCREENSHOT_DIR / "login_error.png"
-                page.screenshot(path=str(error_screenshot), full_page=False)
-                log(f"📸 에러 스크린샷 저장")
-            except:
-                pass
-            
+            save_screenshot(page, "login_error.png", log)
+
             return {
                 "success": False,
                 "screenshot": "login_error.png",

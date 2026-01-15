@@ -7,11 +7,11 @@ import time
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from utils.config import PERSO_EMAIL, HEADLESS, SCREENSHOT_DIR, VIDEO_FILE_PATH
+from utils.config import PERSO_EMAIL, HEADLESS, VIDEO_FILE_PATH
 from utils.login import do_login
 from utils.upload import upload_file
 from utils.popup_handler import close_all_modals_and_popups
-from utils.browser import create_browser_context
+from utils.browser import create_browser_context, save_screenshot
 from utils.logger import create_logger
 from utils.verification import verify_upload_success
 
@@ -62,10 +62,8 @@ def test_upload_sync(log_callback=None):
             log("\n" + "="*50)
             log("STEP 5: 스크린샷 저장")
             log("="*50)
-            
-            screenshot_path = SCREENSHOT_DIR / "upload_success.png"
-            page.screenshot(path=str(screenshot_path))
-            log(f"✅ 스크린샷 저장: {screenshot_path.name}")
+
+            save_screenshot(page, "upload_success.png", log)
             
             log("\n" + "="*50)
             log("✅ 업로드 테스트 완료!")
@@ -79,18 +77,11 @@ def test_upload_sync(log_callback=None):
             
         except Exception as e:
             log(f"❌ 에러 발생: {e}")
-            
-            # 에러 스크린샷
-            try:
-                error_screenshot = SCREENSHOT_DIR / "upload_error.png"
-                page.screenshot(path=str(error_screenshot), full_page=False)
-                log(f"📸 에러 스크린샷 저장")
-            except:
-                pass
-            
+            save_screenshot(page, "upload_error.png", log)
+
             import traceback
             traceback.print_exc()
-            
+
             return {
                 "success": False,
                 "screenshot": "upload_error.png",

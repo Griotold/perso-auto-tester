@@ -1,3 +1,30 @@
+from utils.config import SCREENSHOT_DIR
+
+
+def save_screenshot(page, filename, log=None, full_page=False):
+    """스크린샷을 저장합니다.
+
+    Args:
+        page: Playwright page 객체
+        filename: 저장할 파일명 (예: "login_success.png")
+        log: 로그 출력 함수 (optional)
+        full_page: 전체 페이지 스크린샷 여부 (default: False)
+
+    Returns:
+        str: 저장된 파일명 (성공 시), None (실패 시)
+    """
+    _log = log if log else print
+    screenshot_path = SCREENSHOT_DIR / filename
+
+    try:
+        page.screenshot(path=str(screenshot_path), full_page=full_page)
+        _log(f"📸 스크린샷 저장: {filename}")
+        return filename
+    except Exception as e:
+        _log(f"⚠️ 스크린샷 저장 실패: {e}")
+        return None
+
+
 def create_browser_context(playwright, headless=True, viewport_width=1920, viewport_height=1080):
     """브라우저 컨텍스트를 생성합니다.
 
