@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import time
@@ -15,11 +16,12 @@ from utils.browser import create_browser_context, save_screenshot
 from utils.logger import create_logger
 from utils.translation_helper import select_language_from_dropdown, click_translate_button
 from utils.verification import verify_translate_success
+from utils.teams_notifier import send_teams_notification_sync
 
-def test_translate_sync(log_callback=None):
+def test_translate_sync(log_callback=None, log_collector=None):
     """파일 업로드 후 번역 설정을 완료하는 테스트"""
 
-    log = create_logger(log_callback)
+    log = create_logger(log_callback, log_collector)
 
     log(f"🚀 번역 설정 테스트 시작")
     log(f"📧 이메일: {PERSO_EMAIL}")
@@ -147,4 +149,18 @@ def test_translate_sync(log_callback=None):
             log("🏁 테스트 종료")
 
 if __name__ == "__main__":
-    test_translate_sync()
+    logs: list[str] = []
+    start_time = datetime.now()
+    result = test_translate_sync(log_collector=logs)
+    end_time = datetime.now()
+
+    # Teams 알림 전송
+    send_teams_notification_sync(
+        test_type="translate",
+        success=result["success"],
+        message=result["message"],
+        start_time=start_time,
+        end_time=end_time,
+        screenshot_filename=result.get("screenshot"),
+        logs=logs,
+    )

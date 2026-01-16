@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import time
@@ -13,13 +14,14 @@ from utils.login import do_login
 from utils.popup_handler import close_all_modals_and_popups
 from utils.logger import create_logger
 from utils.verification import verify_login_success
+from utils.teams_notifier import send_teams_notification_sync
 
-def test_login_sync(log_callback=None):
+def test_login_sync(log_callback=None, log_collector=None):
     """로그인 테스트"""
-    
-    log = create_logger(log_callback)
-    
-    log(f"🚀 로그인 테스트 시작")
+
+    log = create_logger(log_callback, log_collector)
+
+    log("🚀 로그인 테스트 시작")
     log(f"📧 이메일: {PERSO_EMAIL}")
     log(f"🖥️  Headless: {HEADLESS}")
     
@@ -89,4 +91,18 @@ def test_login_sync(log_callback=None):
             log("🏁 테스트 종료")
 
 if __name__ == "__main__":
-    test_login_sync()
+    logs: list[str] = []
+    start_time = datetime.now()
+    result = test_login_sync(log_collector=logs)
+    end_time = datetime.now()
+
+    # Teams 알림 전송
+    send_teams_notification_sync(
+        test_type="login",
+        success=result["success"],
+        message=result["message"],
+        start_time=start_time,
+        end_time=end_time,
+        screenshot_filename=result.get("screenshot"),
+        logs=logs,
+    )

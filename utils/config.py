@@ -21,6 +21,10 @@ PERSO_URL = os.getenv('PERSO_URL', 'https://perso.ai/ko/workspace/vt')
 # Playwright 설정
 HEADLESS = os.getenv('HEADLESS', 'true').lower() == 'true'
 
+# Teams 알림 설정
+TEAMS_WEBHOOK_URL = os.getenv('TEAMS_WEBHOOK_URL', '')
+APP_BASE_URL = os.getenv('APP_BASE_URL', 'http://localhost:8000')
+
 # 스크린샷 저장 경로
 SCREENSHOT_DIR = Path("/tmp/screenshots")
 SCREENSHOT_DIR.mkdir(exist_ok=True)

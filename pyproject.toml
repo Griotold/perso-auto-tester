@@ -10,14 +10,9 @@ requires-python = "==3.12.*"
 readme = "README.md"
 license = {text = "MIT"}
 
+
 [tool.pdm]
 distribution = false
-
-[dependency-groups]
-dev = [
-    "pytest>=9.0.2",
-    "httpx>=0.28.1",
-]
 
 [tool.pdm.scripts]
 dev = "uvicorn api.main:app --reload --host 0.0.0.0 --port 8000"
@@ -25,3 +20,12 @@ start = "uvicorn api.main:app --host 0.0.0.0 --port 8080"
 test_login = {env = {HEADLESS = "false"}, cmd = "python tasks/test_login.py"}
 test_upload = {env = {HEADLESS = "false"}, cmd = "python tasks/test_upload.py"}
 test_translate = {env = {HEADLESS = "false"}, cmd = "python tasks/test_translate.py"}
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "httpx>=0.28.1",
+    "ruff>=0.14.13",
+    "black>=25.12.0",
+    "mypy>=1.19.1",
+]
+
