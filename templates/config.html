@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ 환경 설정 - PERSO Auto Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 48px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+
+        .title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: #333;
+        }
+
+        .back-button {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            color: #333;
+            transition: background 0.2s;
+        }
+
+        .back-button:hover {
+            background: #e0e0e0;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 32px;
+            font-size: 16px;
+        }
+
+        .config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .form-group input[type="email"],
+        .form-group input[type="password"],
+        .form-group input[type="text"] {
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group input[type="file"] {
+            padding: 10px;
+            border: 2px dashed #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .current-file {
+            color: #666;
+            font-size: 14px;
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-radius: 6px;
+        }
+
+        .save-button {
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 16px;
+        }
+
+        .save-button:hover {
+            opacity: 0.9;
+        }
+
+        .save-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">
+                <h1>⚙️ 환경 설정</h1>
+            </div>
+            <a href="/" class="back-button">← 돌아가기</a>
+        </div>
+
+        <div class="info-box">
+            <p class="subtitle">테스트에 사용할 계정 정보와 영상 파일을 설정하세요</p>
+            <ul class="guide-list">
+                <li>✅ 이메일 + 비밀번호만 입력 → 계정만 변경</li>
+                <li>✅ 영상 파일만 업로드 → 영상만 변경</li>
+                <li>✅ 모두 입력 → 전부 변경</li>
+                <li>💡 빈 칸으로 두면 기본 설정(.env) 사용</li>
+            </ul>
+        </div>
+
+        <form class="config-form" id="configForm">
+            <div class="form-group">
+                <label for="email">📧 이메일</label>
+                <input type="email" id="email" name="email" 
+                       placeholder="test@example.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">🔐 비밀번호</label>
+                <input type="password" id="password" name="password" 
+                       placeholder="비밀번호를 입력하세요">
+            </div>
+            
+            <div class="form-group">
+                <label for="videoFile">🎬 영상 파일</label>
+                <input type="file" id="videoFile" name="videoFile" 
+                       accept=".mp4,.mov,.avi">
+                <div id="currentFile" class="current-file" style="display: none;"></div>
+            </div>
+            
+            <button type="submit" class="save-button" id="saveButton">
+                💾 설정 저장
+            </button>
+
+            <div id="message" class="message"></div>
+        </form>
+    </div>
+
+    <script>
+        // 페이지 로드 시 현재 설정 불러오기
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                
+                if (config.email) {
+                    document.getElementById('email').value = config.email;
+                }
+                if (config.password) {
+                    document.getElementById('password').value = config.password;
+                }
+                if (config.video_file_path) {
+                    const currentFileDiv = document.getElementById('currentFile');
+                    currentFileDiv.textContent = `현재 파일: ${config.video_file_path.split('/').pop()}`;
+                    currentFileDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('설정 로드 실패:', error);
+            }
+        }
+
+        // 메시지 표시
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // 설정 저장
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const saveButton = document.getElementById('saveButton');
+            saveButton.disabled = true;
+            saveButton.textContent = '💾 저장 중...';
+            
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const videoFile = document.getElementById('videoFile').files[0];
+                
+                // 1. 영상 파일 업로드 (선택된 경우)
+                let videoPath = null;
+                if (videoFile) {
+                    const formData = new FormData();
+                    formData.append('file', videoFile);
+                    
+                    const uploadRes = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!uploadRes.ok) {
+                        throw new Error('영상 파일 업로드 실패');
+                    }
+                    
+                    const uploadData = await uploadRes.json();
+                    videoPath = uploadData.file_path;
+                }
+                
+                // 2. 설정 저장
+                const configData = {};
+                if (email) configData.email = email;
+                if (password) configData.password = password;
+                if (videoPath) configData.video_file_path = videoPath;
+                
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(configData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('설정 저장 실패');
+                }
+                
+                showMessage('✅ 설정이 저장되었습니다!', 'success');
+                await loadConfig();
+                
+            } catch (error) {
+                console.error('저장 실패:', error);
+                showMessage('❌ 설정 저장에 실패했습니다.', 'error');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = '💾 설정 저장';
+            }
+        });
+
+        // 페이지 로드 시 설정 불러오기
+        loadConfig();
+    </script>
+</body>
+</html>

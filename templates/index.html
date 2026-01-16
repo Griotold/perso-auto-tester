@@ -153,12 +153,38 @@
             animation: spin 1s ease-in-out infinite;
             margin-right: 10px;
         }
+        .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        }
+
+        .title-section {
+            flex: 1;
+        }
+
+        .config-icon {
+            font-size: 32px;
+            cursor: pointer;
+            transition: transform 0.3s;
+            text-decoration: none;
+        }
+
+        .config-icon:hover {
+            transform: rotate(90deg);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🤖 PERSO Auto Tester</h1>
-        <p class="subtitle">PERSO.AI 자동화 테스트 시스템</p>
+        <div class="header">
+            <div class="title-section">
+                <h1>🤖 PERSO Auto Tester</h1>
+                <p class="subtitle">PERSO.AI 자동화 테스트 시스템</p>
+            </div>
+            <a href="/config" class="config-icon" title="환경 설정">⚙️</a>
+        </div>
 
         <div class="button-group">
             <button onclick="runTest('login')" id="loginBtn">
